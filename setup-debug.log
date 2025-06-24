@@ -1,0 +1,28 @@
++ set -e
++ echo '🚀 Setting up ChaosGuard...'
+🚀 Setting up ChaosGuard...
++ command -v minikube
++ command -v kubectl
++ command -v docker
++ minikube status
++ minikube addons enable ingress
+
+X Exiting due to MK_ADDON_ENABLE_PAUSED: enabled failed: get state: unknown state "minikube": docker container inspect minikube --format=<no value>: exit status 1
+stdout:
+
+
+stderr:
+Error response from daemon: No such container: minikube
+
+* 
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                           │
+│    * If the above advice does not help, please let us know:                                                               │
+│      https://github.com/kubernetes/minikube/issues/new/choose                                                             │
+│                                                                                                                           │
+│    * Please run `minikube logs --file=logs.txt` and attach logs.txt to the GitHub issue.                                  │
+│    * Please also attach the following file to the GitHub issue:                                                           │
+│    * - /var/folders/xk/63zrc0n12x16mfql2g7fqb040000gn/T/minikube_addons_c0f81e81b15fc1433bfa1b50f826e2e788dd2480_0.log    │
+│                                                                                                                           │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+

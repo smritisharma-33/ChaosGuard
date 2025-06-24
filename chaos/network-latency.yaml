@@ -1,0 +1,90 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: network-latency-chaos
+  namespace: chaosguard
+spec:
+  appinfo:
+    appns: 'chaosguard'
+    applabel: 'app=product-service'
+    appkind: 'deployment'
+  chaosServiceAccount: litmus-admin
+  experiments:
+  - name: pod-network-latency
+    spec:
+      components:
+        env:
+        - name: TOTAL_CHAOS_DURATION
+          value: '120'
+        - name: NETWORK_LATENCY
+          value: '2000'
+        - name: CONTAINER_RUNTIME
+          value: 'containerd'
+        - name: SOCKET_PATH
+          value: '/run/containerd/containerd.sock'
+        - name: PODS_AFFECTED_PERC
+          value: '50'
+
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: pod-network-latency
+  namespace: chaosguard
+  labels:
+    name: pod-network-latency
+    app.kubernetes.io/part-of: litmus
+    app.kubernetes.io/component: chaosexperiment
+    app.kubernetes.io/version: 3.0.0
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods","events"]
+        verbs: ["create","list","get","patch","update","delete","deletecollection"]
+      - apiGroups: [""]
+        resources: ["pods/exec","pods/log"]
+        verbs: ["create","list","get"]
+      - apiGroups: ["apps"]
+        resources: ["deployments","statefulsets","replicasets","daemonsets"]
+        verbs: ["list","get"]
+      - apiGroups: ["batch"]
+        resources: ["jobs"]
+        verbs: ["create","list","get","delete","deletecollection"]
+      - apiGroups: ["litmuschaos.io"]
+        resources: ["chaosengines","chaosexperiments","chaosresults"]
+        verbs: ["create","list","get","patch","update","delete"]
+    image: "litmuschaos/go-runner:3.0.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name pod-network-latency
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '60'
+    - name: RAMP_TIME
+      value: ''
+    - name: NETWORK_LATENCY
+      value: '2000'
+    - name: JITTER
+      value: '0'
+    - name: CONTAINER_RUNTIME
+      value: 'containerd'
+    - name: SOCKET_PATH
+      value: '/run/containerd/containerd.sock'
+    - name: PODS_AFFECTED_PERC
+      value: ''
+    - name: TARGET_PODS
+      value: ''
+    - name: NODE_LABEL
+      value: ''
+    - name: SEQUENCE
+      value: 'parallel'
+    labels:
+      name: pod-network-latency
+      app.kubernetes.io/part-of: litmus
+      app.kubernetes.io/component: chaosexperiment
+      app.kubernetes.io/version: 3.0.0

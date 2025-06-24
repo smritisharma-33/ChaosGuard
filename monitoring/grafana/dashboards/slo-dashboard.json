@@ -1,0 +1,131 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ChaosGuard SLO Dashboard",
+    "tags": ["chaosguard", "slo"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Error Rate SLO",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(auth_requests_total{status=~\"5..\"}[5m]) + rate(product_requests_total{status=~\"5..\"}[5m]) + rate(payment_requests_total{status=~\"5..\"}[5m])",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 0.005},
+                {"color": "red", "value": 0.01}
+              ]
+            },
+            "unit": "percentunit",
+            "max": 0.05
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Latency SLO (P95)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(auth_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "Auth P95"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(product_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "Product P95"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(payment_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "Payment P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 0.8},
+                {"color": "red", "value": 1.0}
+              ]
+            },
+            "unit": "s",
+            "max": 2.0
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(auth_requests_total[5m])",
+            "legendFormat": "Auth Service"
+          },
+          {
+            "expr": "rate(product_requests_total[5m])",
+            "legendFormat": "Product Service"
+          },
+          {
+            "expr": "rate(payment_requests_total[5m])",
+            "legendFormat": "Payment Service"
+          }
+        ],
+        "yAxes": [
+          {"label": "Requests/sec", "min": 0},
+          {"show": false}
+        ],
+        "gridPos": {"h": 9, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Service Health Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "auth_service_health",
+            "legendFormat": "Auth"
+          },
+          {
+            "expr": "product_service_health", 
+            "legendFormat": "Product"
+          },
+          {
+            "expr": "payment_service_health",
+            "legendFormat": "Payment"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "min": 0,
+            "max": 1,
+            "mappings": [
+              {"options": {"0": {"text": "Down"}}, "type": "value"},
+              {"options": {"1": {"text": "Up"}}, "type": "value"}
+            ]
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 17}
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "5s"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ChaosGuard Chaos Engineering Overview",
+    "tags": ["chaosguard", "chaos"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pod Restart Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(kube_pod_container_status_restarts_total{namespace=\"chaosguard\"}[5m])",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "Restarts/sec", "min": 0},
+          {"show": false}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{namespace=\"chaosguard\"}[5m]) * 100",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "CPU %", "min": 0, "max": 100},
+          {"show": false}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{namespace=\"chaosguard\"} / 1024 / 1024",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "Memory (MB)", "min": 0},
+          {"show": false}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Network I/O",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_network_receive_bytes_total{namespace=\"chaosguard\"}[5m])",
+            "legendFormat": "RX {{pod}}"
+          },
+          {
+            "expr": "rate(container_network_transmit_bytes_total{namespace=\"chaosguard\"}[5m])",
+            "legendFormat": "TX {{pod}}"
+          }
+        ],
+        "yAxes": [
+          {"label": "Bytes/sec", "min": 0},
+          {"show": false}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "5s"
+  }
+}

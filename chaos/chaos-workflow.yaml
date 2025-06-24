@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: chaosguard-workflow
+  namespace: chaosguard
+spec:
+  entrypoint: chaos-experiments
+  serviceAccountName: argo-workflow
+  templates:
+  - name: chaos-experiments
+    steps:
+    - - name: pod-delete-experiment
+        template: run-chaos
+        arguments:
+          parameters:
+          - name: experiment
+            value: "pod-delete-chaos"
+    - - name: network-latency-experiment
+        template: run-chaos
+        arguments:
+          parameters:
+          - name: experiment
+            value: "network-latency-chaos"
+    - - name: cpu-stress-experiment
+        template: run-chaos
+        arguments:
+          parameters:
+          - name: experiment
+            value: "cpu-stress-chaos"
+    - - name: generate-report
+        template: generate-rca-report
+
+  - name: run-chaos
+    inputs:
+      parameters:
+      - name: experiment
+    container:
+      image: litmuschaos/litmus-checker:3.0.0
+      command: ["/bin/bash"]
+      args: ["-c", "kubectl apply -f /chaos/{{inputs.parameters.experiment}}.yaml && sleep 300"]
+
+  - name: generate-rca-report
+    container:
+      image: python:3.9
+      command: ["/bin/bash"]
+      args: ["-c", "python /scripts/rca-generator.py"]
+      volumeMounts:
+      - name: scripts
+        mountPath: /scripts

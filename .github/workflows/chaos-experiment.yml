@@ -1,0 +1,151 @@
+name: Chaos Engineering Experiment
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Run every Monday at 10 AM
+  workflow_dispatch:
+    inputs:
+      experiment_type:
+        description: 'Type of chaos experiment'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - pod-failure
+        - network-latency
+        - cpu-stress
+
+jobs:
+  chaos-experiment:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Minikube
+      uses: medyagh/setup-minikube@master
+      with:
+        minikube-version: 1.32.0
+        kubernetes-version: 1.28.3
+        driver: docker
+        start-args: '--memory=4096 --cpus=2'
+    
+    - name: Setup environment
+      run: |
+        minikube addons enable ingress
+        minikube addons enable metrics-server
+        eval $(minikube docker-env)
+    
+    - name: Build and deploy application
+      run: |
+        ./scripts/setup.sh
+        ./scripts/deploy.sh
+    
+    - name: Wait for services to be ready
+      run: |
+        kubectl wait --for=condition=available --timeout=300s deployment/auth-service -n chaosguard
+        kubectl wait --for=condition=available --timeout=300s deployment/product-service -n chaosguard
+        kubectl wait --for=condition=available --timeout=300s deployment/payment-service -n chaosguard
+        kubectl wait --for=condition=available --timeout=300s deployment/prometheus -n chaosguard
+    
+    - name: Setup Python for RCA generator
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Python dependencies
+      run: |
+        pip install requests
+    
+    - name: Run baseline load test
+      run: |
+        # Install k6
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+        
+        # Run baseline test
+        export BASE_URL="http://$(minikube ip):30080"
+        k6 run tests/load-test.js --duration 2m --vus 10
+    
+    - name: Run chaos experiments
+      run: |
+        chmod +x scripts/chaos-runner.sh
+        ./scripts/chaos-runner.sh ${{ github.event.inputs.experiment_type || 'all' }} 180
+    
+    - name: Run load test during chaos
+      run: |
+        export BASE_URL="http://$(minikube ip):30080"
+        k6 run tests/load-test.js --duration 5m --vus 20 &
+        LOAD_TEST_PID=$!
+        
+        # Let load test run during chaos
+        sleep 300
+        
+        # Stop load test
+        kill $LOAD_TEST_PID || true
+    
+    - name: Generate RCA report
+      run: |
+        python3 scripts/rca-generator.py
+    
+    - name: Upload chaos experiment results
+      uses: actions/upload-artifact@v3
+      with:
+        name: chaos-experiment-results
+        path: |
+          reports/
+          logs/
+    
+    - name: Create Issue for SLO Breach
+      if: contains(steps.chaos-experiment.outputs.result, 'SLO_BREACH')
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 SLO Breach Detected in Chaos Experiment',
+            body: `
+            ## SLO Breach Alert
+            
+            A chaos engineering experiment has detected SLO breaches in the system.
+            
+            **Experiment Type:** ${{ github.event.inputs.experiment_type || 'all' }}
+            **Date:** ${new Date().toISOString()}
+            
+            Please review the generated RCA report and take appropriate action.
+            
+            ### Next Steps
+            1. Review the RCA report in the artifacts
+            2. Implement recommended mitigations
+            3. Plan follow-up experiments
+            
+            cc: @platform-team
+            `,
+            labels: ['incident', 'chaos-engineering', 'slo-breach']
+          })
+
+  notify-slack:
+    needs: chaos-experiment
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: |
+          Chaos Engineering Experiment Completed
+          
+          Status: ${{ job.status }}
+          Experiment: ${{ github.event.inputs.experiment_type || 'all' }}
+          
+          Check the artifacts for detailed RCA report.
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
